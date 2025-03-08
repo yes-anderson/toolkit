@@ -1,0 +1,10 @@
+.sidebar {
+  font-weight: 400;
+}
+{
+ color: #181616;
+}
+body.light-mode .sidebar {
+  ...
+  color: #181616;
+}

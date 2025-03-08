@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DITHER BOY (Version 4)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Base styles */
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background-color: #000;
+      color: #fff;
+      font-size: 14px;
+      text-transform: uppercase;
+      display: flex;
+      height: 100vh;
+      padding: 10px;
+      box-sizing: border-box;
+      margin: 0;
+    }
+    body.light-mode {
+      background-color: #F2F2F2;
+      color: #000;
+    }
+    /* Sidebar */
+    .sidebar {
+      width: 300px;
+      background: #000;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      font-size: 12pt;
+      text-transform: uppercase;
+      color: #181616;
+    }
+    body.light-mode .sidebar {
+      background: #F2F2F2;
+    }
+    .main-content {
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+    }
+    /* The canvas will exactly match the loaded image */
+    canvas {
+      display: block;
+    }
+    /* Section titles */
+    .section-title {
+      margin: 0;
+      padding: 5px 0;
+      font-size: 12pt;
+      text-transform: uppercase;
+      color: inherit;
+    }
+    /* Flat buttons */
+    .flat-btn {
+      display: inline-block;
+      background: #D9D9D9;
+      color: #000;
+      border: none;
+      padding: 2px 4px;
+      font-size: 12pt;
+      cursor: pointer;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .flat-btn:hover {
+      background: #bfbfbf;
+    }
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    /* Toggle container (50% width) */
+    .toggle-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 50%;
+      padding: 2px 4px;
+      background: #D9D9D9;
+      color: #000;
+      border: none;
+      font-size: 12pt;
+      cursor: pointer;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    /* Square toggle style */
+    .dither-switch, .halftone-switch {
+      width: 20px;
+      height: 20px;
+      background-color: #D9D9D9;
+      cursor: pointer;
+      position: relative;
+    }
+    .dither-switch input, .halftone-switch input {
+      display: none;
+    }
+    .dither-switch .slider-toggle, .halftone-switch .slider-toggle {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
+    .dither-switch input:checked + .slider-toggle,
+    .halftone-switch input:checked + .slider-toggle {
+      background-color: #000;
+    }
+    /* Slider containers updated to 15px tall */
+    .dither-slider-container,
+    .pattern-slider-container,
+    .halftone-slider-container {
+      width: 90%;
+      height: 15px;
+      position: relative;
+      background: #222;
+      box-shadow: inset 0 0 0 0.5px #888;
+    }
+    body.light-mode .dither-slider-container,
+    body.light-mode .pattern-slider-container,
+    body.light-mode .halftone-slider-container {
+      background: #ddd;
+    }
+    /* Slider bars updated to 15px tall */
+    .dither-bar,
+    .pattern-bar,
+    .halftone-bar {
+      height: 100%;
+      background: #fff;
+      transition: width 0.3s ease;
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 1;
+    }
+    body.light-mode .dither-bar,
+    body.light-mode .pattern-bar,
+    body.light-mode .halftone-bar {
+      background: #000;
+    }
+    /* Slider inputs updated to 15px tall */
+    .dither-slider,
+    .pattern-slider,
+    .halftone-slider {
+      width: 100%;
+      height: 15px;
+      -webkit-appearance: none;
+      background: transparent;
+      position: absolute;
+      z-index: 2;
+      opacity: 0;
+      cursor: pointer;
+    }
+    /* Tools containers */
+    .dither-tools, .halftone-tools {
+      display: block;
+      color: inherit;
+    }
+    /* Hide native file input */
+    #upload {
+      display: none;
+    }
+    /* Recolor Checkbox styling */
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12pt;
+      color: inherit;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .checkbox-container input {
+      cursor: pointer;
+    }
+    /* Light Mode Toggle */
+    .light-toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: auto;
+      text-transform: uppercase;
+    }
+    .light-toggle-container .switch {
+      width: 20px;
+      height: 20px;
+      border: none;
+      cursor: pointer;
+    }
+    .light-toggle-container .switch input {
+      display: none;
+    }
+    .light-toggle-container .slider-toggle {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background-color: #888;
+      transition: background-color 0.3s ease;
+    }
+    .light-toggle-container .switch input:checked + .slider-toggle {
+      background-color: #000;
+    }
+    /* Bottom bar */
+    .bottom-bar {
+      font-size: 9pt;
+      margin-top: 6px;
+      border-top: 0.5px solid #888;
+      padding-top: 6px;
+      color: #888;
+      text-transform: uppercase;
+    }
+    /* Additional halftone pattern dropdown styling */
+    .flat-select {
+      display: inline-block;
+      background: #D9D9D9;
+      color: #000;
+      border: none;
+      padding: 2px 4px;
+      font-size: 12pt;
+      cursor: pointer;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body class="light-mode">
+  <div class="sidebar">
+    <!-- Upload & Controls Section -->
+    <div class="button-container">
+      <label for="upload" class="flat-btn">Upload image</label>
+      <input type="file" id="upload" accept="image/*" />
+      <button id="save-image" class="flat-btn">Save image</button>
+      <button id="reset-canvas" class="flat-btn">Reset</button>
+    </div>
+    <!-- Dither Section -->
+    <div class="dither-section">
+      <div class="toggle-container">
+        <span>Dither</span>
+        <label class="dither-switch">
+          <input type="checkbox" id="dither-toggle">
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+      <div id="dither-tools" class="dither-tools">
+        <p class="section-title">Algorithm</p>
+        <select id="dither-type" class="flat-btn">
+          <option value="floyd">Floyd-Steinberg</option>
+          <option value="atkinson">Atkinson</option>
+          <option value="ordered">Ordered dithering</option>
+        </select>
+        <p class="section-title">Dither intensity</p>
+        <div class="dither-slider-container">
+          <div class="dither-bar" id="dither-bar"></div>
+          <input type="range" id="dither-scale" class="dither-slider" min="1" max="10" value="5">
+        </div>
+        <p class="section-title">Pattern scale</p>
+        <div class="pattern-slider-container">
+          <div class="pattern-bar" id="pattern-bar"></div>
+          <input type="range" id="pattern-scale" class="pattern-slider" min="1" max="6" step="0.1" value="3">
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="recolor-checkbox">
+          <label for="recolor-checkbox">Recolor artwork</label>
+        </div>
+      </div>
+    </div>
+    <!-- Halftone Section -->
+    <div class="halftone-section">
+      <div class="toggle-container">
+        <span>Halftone</span>
+        <label class="halftone-switch">
+          <input type="checkbox" id="halftone-toggle">
+          <span class="slider-toggle"></span>
+        </label>
+      </div>
+      <div id="halftone-tools" class="halftone-tools" style="display:none;">
+        <p class="section-title">Halftone pattern</p>
+        <select id="halftone-pattern" class="flat-select">
+          <option value="standard">Standard</option>
+          <option value="horizontal">Horizontal</option>
+          <option value="vertical">Vertical</option>
+        </select>
+        <p class="section-title">Halftone scale</p>
+        <div class="halftone-slider-container">
+          <div class="halftone-bar" id="halftone-bar"></div>
+          <!-- Halftone slider now uses whole number steps -->
+          <input type="range" id="halftone-scale" class="halftone-slider" min="1" max="6" step="1" value="3">
+        </div>
+      </div>
+    </div>
+    <!-- Light Mode Toggle -->
+    <div class="light-toggle-container">
+      <label class="flat-btn" style="width:auto; padding: 6px 8px;">Light mode</label>
+      <label class="switch">
+        <input type="checkbox" id="toggle-mode">
+        <span class="slider-toggle"></span>
+      </label>
+    </div>
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <span>All rights to Gus Lau Studio. 2025</span>
+    </div>
+  </div>
+  <div class="main-content">
+    <canvas id="canvas"></canvas>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
