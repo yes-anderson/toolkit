@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>DITHER BOY (Version 4)</title>
+  <title>Toolbox (Version 4)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -26,18 +26,36 @@
     }
     /* Sidebar */
     .sidebar {
-      width: 300px;
+      flex: 0 0 300px;
       background: #000;
       padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 15px;
       font-size: 12pt;
       text-transform: uppercase;
       color: #181616;
+      position: relative;
+      z-index: 10;
     }
     body.light-mode .sidebar {
       background: #F2F2F2;
+    }
+    /* Reserve logo space at top */
+    .logo-space {
+      height: 200px;
+    }
+    /* Wrap sidebar content (excluding footer) */
+    .sidebar-content {
+      display: flex;
+      flex-direction: column;
+      gap: 6px; /* Reduced spacing */
+    }
+    /* Sidebar footer always pinned at bottom */
+    .sidebar-footer {
+      margin-top: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .main-content {
       flex-grow: 1;
@@ -45,10 +63,13 @@
       justify-content: center;
       align-items: center;
       padding: 10px;
+      position: relative;
+      z-index: 1;
     }
-    /* The canvas will exactly match the loaded image */
     canvas {
       display: block;
+      max-width: 100%;
+      max-height: 100%;
     }
     /* Section titles */
     .section-title {
@@ -58,7 +79,14 @@
       text-transform: uppercase;
       color: inherit;
     }
-    /* Flat buttons */
+    /* PLAYGROUND label */
+    .playground-label {
+      font-size: 12pt;
+      color: #b0b0b0;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    /* Flat button style */
     .flat-btn {
       display: inline-block;
       background: #D9D9D9;
@@ -78,12 +106,12 @@
       flex-direction: column;
       align-items: flex-start;
     }
-    /* Toggle container (50% width) */
+    /* Toggle container */
     .toggle-container {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      width: 50%;
+      width: 90%;  /* Increased to 90% */
       padding: 2px 4px;
       background: #D9D9D9;
       color: #000;
@@ -93,18 +121,24 @@
       margin-bottom: 6px;
       text-transform: uppercase;
     }
-    /* Square toggle style */
-    .dither-switch, .halftone-switch {
+    /* Square toggle styles */
+    .dither-switch, .halftone-switch, .outline-switch, .blur-switch, .adjustment-switch, .light-switch, .paint-switch {
       width: 20px;
       height: 20px;
       background-color: #D9D9D9;
       cursor: pointer;
       position: relative;
     }
-    .dither-switch input, .halftone-switch input {
+    .dither-switch input, .halftone-switch input, .outline-switch input, .blur-switch input, .adjustment-switch input, .light-switch input, .paint-switch input {
       display: none;
     }
-    .dither-switch .slider-toggle, .halftone-switch .slider-toggle {
+    .dither-switch .slider-toggle, 
+    .halftone-switch .slider-toggle,
+    .outline-switch .slider-toggle,
+    .blur-switch .slider-toggle,
+    .adjustment-switch .slider-toggle,
+    .light-switch .slider-toggle,
+    .paint-switch .slider-toggle {
       display: block;
       width: 100%;
       height: 100%;
@@ -112,28 +146,33 @@
       transition: background-color 0.3s ease;
     }
     .dither-switch input:checked + .slider-toggle,
-    .halftone-switch input:checked + .slider-toggle {
+    .halftone-switch input:checked + .slider-toggle,
+    .outline-switch input:checked + .slider-toggle,
+    .blur-switch input:checked + .slider-toggle,
+    .adjustment-switch input:checked + .slider-toggle,
+    .light-switch input:checked + .slider-toggle,
+    .paint-switch input:checked + .slider-toggle {
       background-color: #000;
     }
-    /* Slider containers updated to 15px tall */
+    /* Slider containers */
     .dither-slider-container,
     .pattern-slider-container,
-    .halftone-slider-container {
+    .halftone-slider-container,
+    .blur-slider-container,
+    .adjustment-slider-container,
+    .outline-slider-container {
       width: 90%;
       height: 15px;
       position: relative;
-      background: #222;
+      background: #fff;
       box-shadow: inset 0 0 0 0.5px #888;
     }
-    body.light-mode .dither-slider-container,
-    body.light-mode .pattern-slider-container,
-    body.light-mode .halftone-slider-container {
-      background: #ddd;
-    }
-    /* Slider bars updated to 15px tall */
     .dither-bar,
     .pattern-bar,
-    .halftone-bar {
+    .halftone-bar,
+    .blur-bar,
+    .adjustment-bar,
+    .outline-bar {
       height: 100%;
       background: #fff;
       transition: width 0.3s ease;
@@ -144,13 +183,18 @@
     }
     body.light-mode .dither-bar,
     body.light-mode .pattern-bar,
-    body.light-mode .halftone-bar {
+    body.light-mode .halftone-bar,
+    body.light-mode .blur-bar,
+    body.light-mode .adjustment-bar,
+    body.light-mode .outline-bar  {
       background: #000;
     }
-    /* Slider inputs updated to 15px tall */
     .dither-slider,
     .pattern-slider,
-    .halftone-slider {
+    .halftone-slider,
+    .blur-slider,
+    .adjustment-slider,
+    .outline-slider {
       width: 100%;
       height: 15px;
       -webkit-appearance: none;
@@ -161,7 +205,7 @@
       cursor: pointer;
     }
     /* Tools containers */
-    .dither-tools, .halftone-tools {
+    .dither-tools, .halftone-tools, .outline-tools, .blur-tools, .adjustment-tools, .paint-tools {
       display: block;
       color: inherit;
     }
@@ -182,34 +226,13 @@
     .checkbox-container input {
       cursor: pointer;
     }
-    /* Light Mode Toggle */
-    .light-toggle-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    /* Sidebar footer */
+    .sidebar-footer {
       margin-top: auto;
-      text-transform: uppercase;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    .light-toggle-container .switch {
-      width: 20px;
-      height: 20px;
-      border: none;
-      cursor: pointer;
-    }
-    .light-toggle-container .switch input {
-      display: none;
-    }
-    .light-toggle-container .slider-toggle {
-      display: block;
-      width: 100%;
-      height: 100%;
-      background-color: #888;
-      transition: background-color 0.3s ease;
-    }
-    .light-toggle-container .switch input:checked + .slider-toggle {
-      background-color: #000;
-    }
-    /* Bottom bar */
     .bottom-bar {
       font-size: 9pt;
       margin-top: 6px;
@@ -234,83 +257,169 @@
 </head>
 <body class="light-mode">
   <div class="sidebar">
-    <!-- Upload & Controls Section -->
-    <div class="button-container">
-      <label for="upload" class="flat-btn">Upload image</label>
-      <input type="file" id="upload" accept="image/*" />
-      <button id="save-image" class="flat-btn">Save image</button>
-      <button id="reset-canvas" class="flat-btn">Reset</button>
+    <!-- Logo space -->
+    <div class="logo-space"></div>
+    <!-- Sidebar content -->
+    <div class="sidebar-content">
+      <!-- LOAD & Controls Section -->
+      <div class="button-container">
+        <label for="upload" class="flat-btn">LOAD IMAGE</label>
+        <input type="file" id="upload" accept="image/*" />
+        <button id="save-image" class="flat-btn">SAVE / EXPORT</button>
+        <button id="reset-canvas" class="flat-btn">Reset</button>
+      </div>
+      <p class="playground-label">Playground</p>
+      <!-- Dither Section -->
+      <div class="dither-section">
+        <div class="toggle-container">
+          <span>Dither</span>
+          <label class="dither-switch">
+            <input type="checkbox" id="dither-toggle">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <div id="dither-tools" class="dither-tools">
+          <p class="section-title">Algorithm</p>
+          <select id="dither-type" class="flat-btn">
+            <option value="floyd">Floyd-Steinberg</option>
+            <option value="atkinson">Atkinson</option>
+            <option value="ordered">Ordered dithering</option>
+          </select>
+          <p class="section-title">Dither intensity</p>
+          <div class="dither-slider-container">
+            <div class="dither-bar" id="dither-bar"></div>
+            <input type="range" id="dither-scale" class="dither-slider" min="1" max="10" value="5">
+          </div>
+          <p class="section-title">Pattern scale</p>
+          <div class="pattern-slider-container">
+            <div class="pattern-bar" id="pattern-bar"></div>
+            <input type="range" id="pattern-scale" class="pattern-slider" min="1" max="6" step="0.1" value="3">
+          </div>
+          <div class="checkbox-container">
+            <input type="checkbox" id="recolor-checkbox">
+            <label for="recolor-checkbox">Recolor artwork</label>
+          </div>
+        </div>
+      </div>
+      <!-- Halftone Section -->
+      <div class="halftone-section">
+        <div class="toggle-container">
+          <span>Halftone</span>
+          <label class="halftone-switch">
+            <input type="checkbox" id="halftone-toggle">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <div id="halftone-tools" class="halftone-tools" style="display:none;">
+          <p class="section-title">Halftone pattern</p>
+          <select id="halftone-pattern" class="flat-select">
+            <option value="standard">Standard</option>
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
+          <p class="section-title">Halftone scale</p>
+          <div class="halftone-slider-container">
+            <div class="halftone-bar" id="halftone-bar"></div>
+            <input type="range" id="halftone-scale" class="halftone-slider" min="1" max="6" step="1" value="3">
+          </div>
+        </div>
+      </div>
+      <!-- Outline Section -->
+      <div class="outline-section">
+        <div class="toggle-container">
+          <span>Outline</span>
+          <label class="outline-switch">
+            <input type="checkbox" id="outline-toggle">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <div id="outline-tools" class="outline-tools" style="display:none;">
+          <p class="section-title">Line thickness</p>
+          <div class="outline-slider-container">
+            <div class="outline-bar" id="outline-bar"></div>
+            <input type="range" id="outline-thickness" class="outline-slider" min="1" max="10" value="1">
+          </div>
+        </div>
+      </div>
+      <!-- IMAGE ADJUSTMENTS Section -->
+      <div class="adjustment-section">
+        <div class="toggle-container">
+          <span>Image adjustments</span>
+          <label class="adjustment-switch">
+            <input type="checkbox" id="adjustment-toggle">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <div id="adjustment-tools" class="adjustment-tools" style="display:none;">
+          <p class="section-title">Brightness</p>
+          <div class="adjustment-slider-container">
+            <div class="adjustment-bar" id="brightness-bar"></div>
+            <input type="range" id="brightness-slider" class="adjustment-slider" min="0" max="200" step="1" value="100">
+          </div>
+          <p class="section-title">Contrast</p>
+          <div class="adjustment-slider-container">
+            <div class="adjustment-bar" id="contrast-bar"></div>
+            <input type="range" id="contrast-slider" class="adjustment-slider" min="0" max="200" step="1" value="100">
+          </div>
+          <p class="section-title">Saturation</p>
+          <div class="adjustment-slider-container">
+            <div class="adjustment-bar" id="saturation-bar"></div>
+            <input type="range" id="saturation-slider" class="adjustment-slider" min="0" max="200" step="1" value="100">
+          </div>
+        </div>
+      </div>
+      <!-- Blur Section -->
+      <div class="blur-section">
+        <div class="toggle-container">
+          <span>Blur</span>
+          <label class="blur-switch">
+            <input type="checkbox" id="blur-toggle">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <div id="blur-tools" class="blur-tools" style="display:none;">
+          <p class="section-title">Amount</p>
+          <div class="blur-slider-container">
+            <div class="blur-bar" id="blur-bar"></div>
+            <input type="range" id="blur-amount" class="blur-slider" min="0" max="10" step="1" value="0">
+          </div>
+        </div>
+      </div>
+      <!-- Paint Section -->
+      <div class="paint-section">
+        <div class="toggle-container">
+          <span>Paint</span>
+          <label class="paint-switch">
+            <input type="checkbox" id="paint-toggle">
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+        <div id="paint-tools" class="paint-tools" style="display:none;">
+          <p class="section-title">Color</p>
+          <!-- Replaced drop-down with a color spectrum input -->
+          <input type="color" id="paint-color" class="flat-select" value="#ff0000">
+        </div>
+      </div>
     </div>
-    <!-- Dither Section -->
-    <div class="dither-section">
-      <div class="toggle-container">
-        <span>Dither</span>
-        <label class="dither-switch">
-          <input type="checkbox" id="dither-toggle">
+    <!-- Sidebar footer -->
+    <div class="sidebar-footer">
+      <div class="undo-redo-container">
+        <button id="undo-btn" class="flat-btn">Undo</button>
+        <button id="redo-btn" class="flat-btn">Redo</button>
+      </div>
+      <div class="light-toggle-container">
+        <label class="switch">
+          <input type="checkbox" id="toggle-mode">
           <span class="slider-toggle"></span>
         </label>
       </div>
-      <div id="dither-tools" class="dither-tools">
-        <p class="section-title">Algorithm</p>
-        <select id="dither-type" class="flat-btn">
-          <option value="floyd">Floyd-Steinberg</option>
-          <option value="atkinson">Atkinson</option>
-          <option value="ordered">Ordered dithering</option>
-        </select>
-        <p class="section-title">Dither intensity</p>
-        <div class="dither-slider-container">
-          <div class="dither-bar" id="dither-bar"></div>
-          <input type="range" id="dither-scale" class="dither-slider" min="1" max="10" value="5">
-        </div>
-        <p class="section-title">Pattern scale</p>
-        <div class="pattern-slider-container">
-          <div class="pattern-bar" id="pattern-bar"></div>
-          <input type="range" id="pattern-scale" class="pattern-slider" min="1" max="6" step="0.1" value="3">
-        </div>
-        <div class="checkbox-container">
-          <input type="checkbox" id="recolor-checkbox">
-          <label for="recolor-checkbox">Recolor artwork</label>
-        </div>
+      <div class="bottom-bar">
+        <span>All rights to Gus Lau Studio. 2025</span>
       </div>
-    </div>
-    <!-- Halftone Section -->
-    <div class="halftone-section">
-      <div class="toggle-container">
-        <span>Halftone</span>
-        <label class="halftone-switch">
-          <input type="checkbox" id="halftone-toggle">
-          <span class="slider-toggle"></span>
-        </label>
-      </div>
-      <div id="halftone-tools" class="halftone-tools" style="display:none;">
-        <p class="section-title">Halftone pattern</p>
-        <select id="halftone-pattern" class="flat-select">
-          <option value="standard">Standard</option>
-          <option value="horizontal">Horizontal</option>
-          <option value="vertical">Vertical</option>
-        </select>
-        <p class="section-title">Halftone scale</p>
-        <div class="halftone-slider-container">
-          <div class="halftone-bar" id="halftone-bar"></div>
-          <!-- Halftone slider now uses whole number steps -->
-          <input type="range" id="halftone-scale" class="halftone-slider" min="1" max="6" step="1" value="3">
-        </div>
-      </div>
-    </div>
-    <!-- Light Mode Toggle -->
-    <div class="light-toggle-container">
-      <label class="flat-btn" style="width:auto; padding: 6px 8px;">Light mode</label>
-      <label class="switch">
-        <input type="checkbox" id="toggle-mode">
-        <span class="slider-toggle"></span>
-      </label>
-    </div>
-    <!-- Bottom Bar -->
-    <div class="bottom-bar">
-      <span>All rights to Gus Lau Studio. 2025</span>
     </div>
   </div>
   <div class="main-content">
+    <!-- The canvas is dynamically sized -->
     <canvas id="canvas"></canvas>
   </div>
   <script src="renderer.js"></script>

@@ -25,16 +25,62 @@ const halftoneBar = document.getElementById("halftone-bar");
 const halftoneScale = document.getElementById("halftone-scale");
 const halftonePattern = document.getElementById("halftone-pattern");
 
+// Outline elements
+const outlineToggle = document.getElementById("outline-toggle");
+const outlineTools = document.getElementById("outline-tools");
+const outlineSlider = document.getElementById("outline-thickness");
+const outlineBar = document.getElementById("outline-bar");
+
+// Blur elements
+const blurToggle = document.getElementById("blur-toggle");
+const blurTools = document.getElementById("blur-tools");
+const blurBar = document.getElementById("blur-bar");
+const blurAmountSlider = document.getElementById("blur-amount");
+
+// IMAGE ADJUSTMENTS elements
+const adjustmentToggle = document.getElementById("adjustment-toggle");
+const adjustmentTools = document.getElementById("adjustment-tools");
+const brightnessSlider = document.getElementById("brightness-slider");
+const contrastSlider = document.getElementById("contrast-slider");
+const saturationSlider = document.getElementById("saturation-slider");
+const brightnessBar = document.getElementById("brightness-bar");
+const contrastBar = document.getElementById("contrast-bar");
+const saturationBar = document.getElementById("saturation-bar");
+
+// Paint elements
+const paintToggle = document.getElementById("paint-toggle");
+const paintTools = document.getElementById("paint-tools");
+const paintColor = document.getElementById("paint-color");
+
+// Undo/Redo elements
+const undoBtn = document.getElementById("undo-btn");
+const redoBtn = document.getElementById("redo-btn");
+
+// History management
+let historyStack = [];
+let historyIndex = -1;
+
 let originalImageData = null;
 let ditherAnimationFrame = null;
+
+// Zoom level for canvas (default zoom = 1)
+let zoomLevel = 1;
 
 // Hide effect tools by default
 ditherToggle.checked = false;
 ditherTools.style.display = "none";
 halftoneToggle.checked = false;
 halftoneTools.style.display = "none";
+outlineToggle.checked = false;
+outlineTools.style.display = "none";
+blurToggle.checked = false;
+blurTools.style.display = "none";
+adjustmentToggle.checked = false;
+adjustmentTools.style.display = "none";
+paintToggle.checked = false;
+paintTools.style.display = "none";
 
-// Draw a placeholder if no image is loaded.
+// Draw placeholder if no image loaded.
 function drawPlaceholder() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#888";
@@ -44,10 +90,10 @@ function drawPlaceholder() {
   ctx.fillText("(drag and drop your image here_)", canvas.width / 2, canvas.height / 2);
 }
 
-// Set up a default canvas.
+// Set up default canvas.
 function setupDefaultCanvas() {
-  canvas.width = 800;
-  canvas.height = 600;
+  canvas.width = 1024;
+  canvas.height = 768;
   drawPlaceholder();
 }
 
@@ -57,14 +103,97 @@ window.addEventListener("load", () => {
   }
 });
 
-// Immediately reapply effects when toggles or sliders change.
+/* --- State Management for Undo/Redo --- */
+function getCurrentState() {
+  return {
+    ditherToggle: ditherToggle.checked,
+    ditherScale: ditherSlider.value,
+    patternScale: patternSlider.value,
+    ditherType: ditherType.value,
+    halftoneToggle: halftoneToggle.checked,
+    halftoneScale: halftoneScale.value,
+    halftonePattern: halftonePattern.value,
+    outlineToggle: outlineToggle.checked,
+    outlineThickness: outlineSlider.value,
+    blurToggle: blurToggle.checked,
+    blurAmount: blurAmountSlider.value,
+    adjustmentToggle: adjustmentToggle.checked,
+    brightness: brightnessSlider.value,
+    contrast: contrastSlider.value,
+    saturation: saturationSlider.value,
+    paintToggle: paintToggle.checked,
+    paintColor: paintColor.value,
+    imageData: new ImageData(new Uint8ClampedArray(originalImageData.data), originalImageData.width, originalImageData.height)
+  };
+}
+
+function applyState(state) {
+  ditherToggle.checked = state.ditherToggle;
+  ditherTools.style.display = state.ditherToggle ? "block" : "none";
+  ditherSlider.value = state.ditherScale;
+  patternSlider.value = state.patternScale;
+  ditherType.value = state.ditherType;
+  halftoneToggle.checked = state.halftoneToggle;
+  halftoneTools.style.display = state.halftoneToggle ? "block" : "none";
+  halftoneScale.value = state.halftoneScale;
+  halftonePattern.value = state.halftonePattern;
+  outlineToggle.checked = state.outlineToggle;
+  outlineTools.style.display = state.outlineToggle ? "block" : "none";
+  outlineSlider.value = state.outlineThickness;
+  blurToggle.checked = state.blurToggle;
+  blurTools.style.display = state.blurToggle ? "block" : "none";
+  blurAmountSlider.value = state.blurAmount;
+  adjustmentToggle.checked = state.adjustmentToggle;
+  adjustmentTools.style.display = state.adjustmentToggle ? "block" : "none";
+  brightnessSlider.value = state.brightness;
+  contrastSlider.value = state.contrast;
+  saturationSlider.value = state.saturation;
+  paintToggle.checked = state.paintToggle;
+  paintTools.style.display = state.paintToggle ? "block" : "none";
+  paintColor.value = state.paintColor;
+  originalImageData = state.imageData;
+  scheduleDither();
+}
+
+function pushHistory() {
+  const state = getCurrentState();
+  historyStack = historyStack.slice(0, historyIndex + 1);
+  historyStack.push(state);
+  historyIndex++;
+}
+
+function undo() {
+  if (historyIndex > 0) {
+    historyIndex--;
+    applyState(historyStack[historyIndex]);
+  }
+}
+
+function redo() {
+  if (historyIndex < historyStack.length - 1) {
+    historyIndex++;
+    applyState(historyStack[historyIndex]);
+  }
+}
+
+window.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z") {
+    e.preventDefault();
+    undo();
+  } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "Z" || e.key === "z")) {
+    e.preventDefault();
+    redo();
+  }
+});
+
+/* --- Immediately reapply effects --- */
 function scheduleDither() {
   applyAllEffects();
 }
 
 /*
   Mapping for Dither Pattern Scale slider (1–6) to block size.
-  New mapping: 1 → 2.24×1 – 0.24 = 2px; 6 → 2.24×6 – 0.24 = 13.2px.
+  1 → 2.24×1 – 0.24 = 2px; 6 → 2.24×6 – 0.24 = 13.2px.
 */
 function getDitherBlockSize(val) {
   return 2.24 * val - 0.24;
@@ -72,7 +201,7 @@ function getDitherBlockSize(val) {
 
 /*
   Mapping for Halftone slider (1–6) to dot size.
-  Maps 1 → 5px, 6 → 30px.
+  1 → 5px; 6 → 30px.
 */
 function getHalftoneBlockSize(val) {
   return 5 + (val - 1) * 5;
@@ -104,7 +233,7 @@ function computeLuminanceIntegral(pixels, width, height) {
       } else if (y === 0) {
         integral[x] = integral[x-1] + lum;
       } else if (x === 0) {
-        integral[y * width] = integral[(y-1) * width] + lum;
+        integral[y * width] = integral[(y-1)*width] + lum;
       } else {
         integral[y * width + x] = integral[y * width + x - 1] +
           integral[(y-1) * width + x] -
@@ -115,20 +244,51 @@ function computeLuminanceIntegral(pixels, width, height) {
   return integral;
 }
 
+/* --- IMAGE ADJUSTMENTS: Apply via canvas filter --- */
+function applyImageAdjustments() {
+  const offCanvas = document.createElement("canvas");
+  offCanvas.width = canvas.width;
+  offCanvas.height = canvas.height;
+  const offCtx = offCanvas.getContext("2d");
+  const brightness = brightnessSlider.value;
+  const contrast = contrastSlider.value;
+  const saturation = saturationSlider.value;
+  offCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+  
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  const tempCtx = tempCanvas.getContext("2d");
+  tempCtx.putImageData(originalImageData, 0, 0);
+  offCtx.drawImage(tempCanvas, 0, 0);
+  offCtx.filter = "none";
+  return offCtx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+/* --- Blur Effect Helper: Apply blur to imageData --- */
+function applyBlurToImageData(imageData, amount) {
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = imageData.width;
+  tempCanvas.height = imageData.height;
+  const tempCtx = tempCanvas.getContext("2d");
+  tempCtx.putImageData(imageData, 0, 0);
+  
+  const offCanvas = document.createElement("canvas");
+  offCanvas.width = imageData.width;
+  offCanvas.height = imageData.height;
+  const offCtx = offCanvas.getContext("2d");
+  offCtx.filter = `blur(${amount}px)`;
+  offCtx.drawImage(tempCanvas, 0, 0);
+  offCtx.filter = "none";
+  return offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+}
+
 /* --- Standard Halftone Effect --- */
-// Applies the halftone effect directly to the image data.
 function applyHalftoneEffect(blockSize) {
-  // Create a fresh grayscale copy from the original image data.
   let imageData = new ImageData(new Uint8ClampedArray(originalImageData.data), originalImageData.width, originalImageData.height);
   convertToGrayscale(imageData);
-  
-  // Compute the luminance integral.
   const integral = computeLuminanceIntegral(imageData.data, imageData.width, imageData.height);
-  
-  // Clear the canvas to replace the image with the halftone pattern.
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Draw halftone dots (circles) directly onto the canvas.
   for (let y = 0; y < imageData.height; y += blockSize) {
     for (let x = 0; x < imageData.width; x += blockSize) {
       let x1 = x, y1 = y;
@@ -151,7 +311,6 @@ function applyHalftoneEffect(blockSize) {
 }
 
 /* --- Horizontal Halftone Effect --- */
-// Applies a horizontal halftone effect by drawing horizontal bars.
 function applyHorizontalHalftoneEffect(blockSize) {
   let imageData = new ImageData(new Uint8ClampedArray(originalImageData.data), originalImageData.width, originalImageData.height);
   convertToGrayscale(imageData);
@@ -179,7 +338,6 @@ function applyHorizontalHalftoneEffect(blockSize) {
 }
 
 /* --- Vertical Halftone Effect --- */
-// Applies a vertical halftone effect by drawing vertical bars.
 function applyVerticalHalftoneEffect(blockSize) {
   let imageData = new ImageData(new Uint8ClampedArray(originalImageData.data), originalImageData.width, originalImageData.height);
   convertToGrayscale(imageData);
@@ -330,8 +488,84 @@ function colorOrderedDither(pixels, width, height) {
   }
 }
 
+/* --- Outline Effect --- */
+function applyOutlineEffect(lineThickness, baseImageData) {
+  const offCanvas = document.createElement("canvas");
+  offCanvas.width = baseImageData.width;
+  offCanvas.height = baseImageData.height;
+  const offCtx = offCanvas.getContext("2d");
+  offCtx.putImageData(baseImageData, 0, 0);
+  
+  // Convert the image to grayscale
+  const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+  const data = imgData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+    data[i] = data[i+1] = data[i+2] = lum;
+  }
+  
+  // Laplacian kernel for edge detection
+  const kernel = [
+    -1, -1, -1,
+    -1,  8, -1,
+    -1, -1, -1
+  ];
+  const width = offCanvas.width, height = offCanvas.height;
+  const edgeData = new Uint8ClampedArray(data.length);
+  
+  // Initialize edgeData to transparent
+  for (let i = 0; i < edgeData.length; i += 4) {
+    edgeData[i] = 0;
+    edgeData[i+1] = 0;
+    edgeData[i+2] = 0;
+    edgeData[i+3] = 0;
+  }
+  
+  // Compute edges; mark as black (opaque) when detected
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      let sum = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++) {
+          const pos = ((y + ky) * width + (x + kx)) * 4;
+          const pixel = data[pos];
+          const weight = kernel[(ky+1)*3 + (kx+1)];
+          sum += pixel * weight;
+        }
+      }
+      const index = (y * width + x) * 4;
+      if (sum > 50) {
+        edgeData[index] = 0;
+        edgeData[index+1] = 0;
+        edgeData[index+2] = 0;
+        edgeData[index+3] = 255;
+      }
+    }
+  }
+  const edgeImageData = new ImageData(edgeData, width, height);
+  
+  // Draw the original image first.
+  ctx.putImageData(baseImageData, 0, 0);
+  
+  // Prepare an off-screen canvas with the edge image.
+  const edgeCanvas = document.createElement("canvas");
+  edgeCanvas.width = width;
+  edgeCanvas.height = height;
+  const edgeCtx = edgeCanvas.getContext("2d");
+  edgeCtx.putImageData(edgeImageData, 0, 0);
+  
+  // Draw the edge image multiple times (offset by slider value) to simulate thickness.
+  ctx.globalCompositeOperation = "source-over";
+  for (let dx = -lineThickness + 1; dx < lineThickness; dx++) {
+    for (let dy = -lineThickness + 1; dy < lineThickness; dy++) {
+      ctx.drawImage(edgeCanvas, dx, dy);
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+
 /* --- Downscaled Dither --- */
-function applyDownscaledDither(algorithm, blockSize) {
+function applyDownscaledDither(algorithm, blockSize, baseImageData) {
   const offCanvas = document.createElement("canvas");
   offCanvas.width = Math.ceil(canvas.width / blockSize);
   offCanvas.height = Math.ceil(canvas.height / blockSize);
@@ -342,12 +576,11 @@ function applyDownscaledDither(algorithm, blockSize) {
   tempCanvas.width = canvas.width;
   tempCanvas.height = canvas.height;
   const tempCtx = tempCanvas.getContext("2d");
-  tempCtx.putImageData(originalImageData, 0, 0);
+  tempCtx.putImageData(baseImageData, 0, 0);
   
   offCtx.drawImage(tempCanvas, 0, 0, offCanvas.width, offCanvas.height);
   const downscaledData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
   
-  // For dither, if "Recolor artwork" is off, convert to grayscale.
   if (!recolorCheckbox.checked) {
     convertToGrayscale(downscaledData);
   }
@@ -386,27 +619,24 @@ function renderPattern(downscaledData, gridWidth, gridHeight, blockSize, algorit
   }
 }
 
-/* --- Main Dither Application --- */
-function applyDither() {
-  if (!originalImageData) return;
-  if (!ditherToggle.checked) {
-    ctx.putImageData(originalImageData, 0, 0);
-    return;
-  }
-  ctx.putImageData(originalImageData, 0, 0);
-  const blockSize = getDitherBlockSize(parseFloat(patternSlider.value));
-  applyDownscaledDither(ditherType.value, blockSize);
-}
-
-/* --- Combined Effects Pipeline --- */
+/* --- Main Effects Pipeline --- */
+// Order: 1. Image adjustments (and blur) -> 2. Effects (outline, halftone, dither)
 function applyAllEffects() {
   if (!originalImageData) return;
-  if (halftoneToggle.checked) {
+  let baseImageData = originalImageData;
+  if (adjustmentToggle.checked) {
+    baseImageData = applyImageAdjustments();
+  }
+  if (blurToggle.checked) {
+    baseImageData = applyBlurToImageData(baseImageData, parseInt(blurAmountSlider.value, 10));
+  }
+  if (outlineToggle.checked) {
+    const thickness = parseInt(outlineSlider.value, 10);
+    applyOutlineEffect(thickness, baseImageData);
+  } else if (halftoneToggle.checked) {
     const blockSize = getHalftoneBlockSize(parseFloat(halftoneScale.value));
-    // Create a fresh grayscale copy.
-    let imageData = new ImageData(new Uint8ClampedArray(originalImageData.data), originalImageData.width, originalImageData.height);
+    let imageData = new ImageData(new Uint8ClampedArray(baseImageData.data), baseImageData.width, baseImageData.height);
     convertToGrayscale(imageData);
-    // Get the selected halftone pattern.
     const pattern = halftonePattern.value;
     if (pattern === "horizontal") {
       applyHorizontalHalftoneEffect(blockSize);
@@ -417,42 +647,120 @@ function applyAllEffects() {
     }
   } else if (ditherToggle.checked) {
     const blockSize = getDitherBlockSize(parseFloat(patternSlider.value));
-    applyDownscaledDither(ditherType.value, blockSize);
+    applyDownscaledDither(ditherType.value, blockSize, baseImageData);
   } else {
-    ctx.putImageData(originalImageData, 0, 0);
+    ctx.putImageData(baseImageData, 0, 0);
+  }
+  
+  // Apply the Paint overlay if enabled
+  if (paintToggle.checked) {
+    const selectedColor = paintColor.value;
+    ctx.fillStyle = selectedColor;
+    ctx.globalAlpha = 0.3; // Adjust overlay opacity as needed
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1.0; // Reset alpha to default
   }
 }
 
 /* --- Event Listeners --- */
 ditherToggle.addEventListener("change", () => {
   ditherTools.style.display = ditherToggle.checked ? "block" : "none";
+  pushHistory();
   scheduleDither();
 });
 
 halftoneToggle.addEventListener("change", () => {
   halftoneTools.style.display = halftoneToggle.checked ? "block" : "none";
+  pushHistory();
   scheduleDither();
 });
+
+outlineToggle.addEventListener("change", () => {
+  outlineTools.style.display = outlineToggle.checked ? "block" : "none";
+  pushHistory();
+  scheduleDither();
+});
+
+blurToggle.addEventListener("change", () => {
+  blurTools.style.display = blurToggle.checked ? "block" : "none";
+  pushHistory();
+  scheduleDither();
+});
+
+adjustmentToggle.addEventListener("change", () => {
+  adjustmentTools.style.display = adjustmentToggle.checked ? "block" : "none";
+  pushHistory();
+  scheduleDither();
+});
+
+paintToggle.addEventListener("change", () => {
+  paintTools.style.display = paintToggle.checked ? "block" : "none";
+  pushHistory();
+  scheduleDither();
+});
+
+// Listen for real-time color changes on the paint tool
+paintColor.addEventListener("input", scheduleDither);
+paintColor.addEventListener("change", pushHistory);
 
 ditherSlider.addEventListener("input", function () {
   let fillPercent = ((parseFloat(this.value) - 1) / 9) * 100;
   ditherBar.style.width = fillPercent + "%";
   scheduleDither();
 });
+ditherSlider.addEventListener("change", pushHistory);
 
 patternSlider.addEventListener("input", function () {
   let fillPercent = ((parseFloat(this.value) - 1) / 5) * 100;
   patternBar.style.width = fillPercent + "%";
   scheduleDither();
 });
+patternSlider.addEventListener("change", pushHistory);
 
 halftoneScale.addEventListener("input", function () {
   let fillPercent = ((parseFloat(this.value) - 1) / 5) * 100;
   halftoneBar.style.width = fillPercent + "%";
   scheduleDither();
 });
+halftoneScale.addEventListener("change", pushHistory);
 
-ditherType.addEventListener("change", scheduleDither());
+blurAmountSlider.addEventListener("input", function () {
+  let fillPercent = (parseFloat(this.value) / 10) * 100;
+  blurBar.style.width = fillPercent + "%";
+  scheduleDither();
+});
+blurAmountSlider.addEventListener("change", pushHistory);
+
+brightnessSlider.addEventListener("input", function () {
+  let fillPercent = (parseFloat(this.value) / 200) * 100;
+  brightnessBar.style.width = fillPercent + "%";
+  scheduleDither();
+});
+brightnessSlider.addEventListener("change", pushHistory);
+
+contrastSlider.addEventListener("input", function () {
+  let fillPercent = (parseFloat(this.value) / 200) * 100;
+  contrastBar.style.width = fillPercent + "%";
+  scheduleDither();
+});
+contrastSlider.addEventListener("change", pushHistory);
+
+saturationSlider.addEventListener("input", function () {
+  let fillPercent = (parseFloat(this.value) / 200) * 100;
+  saturationBar.style.width = fillPercent + "%";
+  scheduleDither();
+});
+saturationSlider.addEventListener("change", pushHistory);
+
+ditherType.addEventListener("change", scheduleDither);
+
+undoBtn.addEventListener("click", () => {
+  undo();
+});
+
+redoBtn.addEventListener("click", () => {
+  redo();
+});
 
 saveButton.addEventListener("click", function () {
   const link = document.createElement("a");
@@ -464,27 +772,55 @@ saveButton.addEventListener("click", function () {
 resetButton.addEventListener("click", function () {
   if (originalImageData) {
     ctx.putImageData(originalImageData, 0, 0);
+    ditherToggle.checked = false;
+    ditherTools.style.display = "none";
+    halftoneToggle.checked = false;
+    halftoneTools.style.display = "none";
+    outlineToggle.checked = false;
+    outlineTools.style.display = "none";
+    blurToggle.checked = false;
+    blurTools.style.display = "none";
+    adjustmentToggle.checked = false;
+    adjustmentTools.style.display = "none";
+    paintToggle.checked = false;
+    paintTools.style.display = "none";
+    pushHistory();
+    scheduleDither();
   }
 });
 
 toggleCheckbox.addEventListener("change", () => {
   document.body.classList.toggle("light-mode");
+  pushHistory();
 });
+
+/* --- Outline Slider Event Listeners --- */
+outlineSlider.addEventListener("input", function() {
+  let fillPercent = ((parseFloat(this.value) - 1) / 9) * 100;
+  outlineBar.style.width = fillPercent + "%";
+  scheduleDither();
+});
+outlineSlider.addEventListener("change", pushHistory);
 
 /* --- Image Upload & Scaling --- */
 function loadImage(file) {
   const img = new Image();
   img.src = URL.createObjectURL(file);
   img.onload = () => {
+    // Preserve the image's aspect ratio while scaling down (if needed)
     const maxDim = 800;
-    const ratio = Math.min(maxDim / img.naturalWidth, maxDim / img.naturalHeight, 1);
-    const newWidth = img.naturalWidth * ratio;
-    const newHeight = img.naturalHeight * ratio;
+    const scaleFactor = Math.min(maxDim / img.naturalWidth, maxDim / img.naturalHeight, 1);
+    const newWidth = img.naturalWidth * scaleFactor;
+    const newHeight = img.naturalHeight * scaleFactor;
+    
+    // Resize the canvas to match the scaled image dimensions
     canvas.width = newWidth;
     canvas.height = newHeight;
+    
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, newWidth, newHeight);
     originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    pushHistory();
     scheduleDither();
   };
 }
@@ -515,46 +851,17 @@ window.addEventListener("load", () => {
   }
 });
 
-function setupDefaultCanvas() {
-  canvas.width = 800;
-  canvas.height = 600;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawPlaceholder();
-}
-
-function drawPlaceholder() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#888";
-  ctx.font = "20px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("(drag and drop your image here_)", canvas.width / 2, canvas.height / 2);
-}
-
-/* --- Vertical Halftone Effect --- */
-// Applies a vertical halftone effect by drawing vertical bars.
-function applyVerticalHalftoneEffect(blockSize) {
-  let imageData = new ImageData(new Uint8ClampedArray(originalImageData.data), originalImageData.width, originalImageData.height);
-  convertToGrayscale(imageData);
-  const integral = computeLuminanceIntegral(imageData.data, imageData.width, imageData.height);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let y = 0; y < imageData.height; y += blockSize) {
-    for (let x = 0; x < imageData.width; x += blockSize) {
-      let x1 = x, y1 = y;
-      let x2 = Math.min(x + blockSize - 1, imageData.width - 1);
-      let y2 = Math.min(y + blockSize - 1, imageData.height - 1);
-      let area = (x2 - x1 + 1) * (y2 - y1 + 1);
-      let sum = integral[y2 * imageData.width + x2];
-      if (x1 > 0) sum -= integral[y2 * imageData.width + (x1 - 1)];
-      if (y1 > 0) sum -= integral[(y1 - 1) * imageData.width + x2];
-      if (x1 > 0 && y1 > 0) sum += integral[(y1 - 1) * imageData.width + (x1 - 1)];
-      let avg = sum / area;
-      let barWidth = (1 - avg / 255) * blockSize;
-      if (barWidth < 2) barWidth = 2;
-      let xCenter = x + blockSize / 2;
-      let xLeft = xCenter - barWidth / 2;
-      ctx.fillStyle = "#000";
-      ctx.fillRect(xLeft, y, barWidth, blockSize);
-    }
+/* --- New: Scroll Wheel Zoom Functionality --- */
+canvas.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const delta = e.deltaY;
+  if (delta < 0) {
+    zoomLevel *= 1.1; // Zoom in
+  } else {
+    zoomLevel /= 1.1; // Zoom out
   }
-}
+  // Clamp zoom level between 0.1 and 5
+  zoomLevel = Math.min(Math.max(zoomLevel, 0.1), 5);
+  canvas.style.transformOrigin = "center center";
+  canvas.style.transform = `scale(${zoomLevel})`;
+});

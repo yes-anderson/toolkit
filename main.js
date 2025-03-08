@@ -1,15 +1,27 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow } = require("electron");
+const path = require("path");
 
 function createWindow() {
-  // Increase width/height so no content line-breaks prematurely
-  const mainWindow = new BrowserWindow({
-    width: 1200,   // for example, wider than the default 800
-    height: 800,   // for example, taller than the default 600
-    // You can also configure other BrowserWindow options here.
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 900,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
   });
 
-  mainWindow.loadFile('index.html');
+  win.loadFile("index.html");
+  // Uncomment below to open DevTools:
+  // win.webContents.openDevTools();
 }
 
 app.whenReady().then(createWindow);
 
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});

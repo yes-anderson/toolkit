@@ -1,16 +1,16 @@
 {
-  "name": "V3",
-  "productName": "V3",
+  "name": "Toolkit V1",
+  "productName": "Toolkit V1",
   "description": "My Electron application description",
   "keywords": [],
   "main": "./main.js",
   "version": "1.0.0",
-  "author": "gus",
+  "author": "angus",
   "scripts": {
     "start": "electron ."
   },
   "dependencies": {},
   "devDependencies": {
-    "electron": "26.0.0"
+    "electron": "35.0.0"
   }
 }
